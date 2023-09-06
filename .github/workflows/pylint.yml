@@ -1,8 +1,9 @@
 name: Pylint
 
-on: [push]
-  paths:
-    - "*.py"
+on: 
+  push:
+    paths:
+      - "**.py"
 
 env:
   python-version: 3.9
