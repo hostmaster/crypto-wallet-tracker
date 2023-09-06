@@ -1,0 +1,31 @@
+services:
+  tracker:
+    image: registry.digitalocean.com/wallet-tracker/tracker
+    platform: linux/x86_64
+    build:
+      context: .
+      target: runtime
+    volumes:
+      - db-data:/data
+    environment:
+      ETHERSCAN_API_KEY: /run/secrets/etherscan_api_key
+      TELEGRAM_BOT_TOKEN: /run/secrets/tg_bot_token
+      TELEGRAM_CHAT_ID: /run/secrets/tg_chat_id
+      WALLETS: "/data/wallets.txt"
+      HASHES_PATH: "/data/latest_tx_hashes.json"
+      LAST_RUN_TIME_PATH: "/data/last_run_time.txt"
+    secrets:
+      - etherscan_api_key
+      - tg_bot_token
+      - tg_chat_id
+
+secrets:
+  etherscan_api_key:
+    file: ./etherscan_api_key.txt
+  tg_bot_token:
+    file: ./tg_bot_token.txt
+  tg_chat_id:
+    file: ./tg_chat_id.txt
+
+volumes:
+  db-data:
