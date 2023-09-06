@@ -14,7 +14,7 @@ Crypto Wallet Transactions Tracker Bot
     <br>
 </p>
 
-This is a Telegram bot that tracks the transactions of added Ethereum (ETH) and Binance Coin (BNB) wallets and sends notifications whenever a new transaction occurs. The bot uses the Etherscan and BSCscan APIs to gather information about transactions, and CoinGecko to fetch the current prices of ETH and BNB.
+This is a Telegram bot that tracks the transactions of added Ethereum (ETH) wallets and sends notifications whenever a new transaction occurs. The bot uses the Etherscan and BSCscan APIs to gather information about transactions, and CoinGecko to fetch the current prices of ETH.
 
 You can contact me for any inquiry; <br>
 [![Telegram](https://img.shields.io/badge/Telegram-2CA5E0?style=for-the-badge&logo=telegram&logoColor=white)](https://t.me/cankat)
@@ -38,7 +38,7 @@ To run the bot, you'll need to have Python 3.6 or later installed on your system
 - `requests` (for making HTTP requests to the APIs)
 - `web3` (for interacting with the Ethereum blockchain)
 
-You'll also need to obtain API keys for Etherscan and BSCscan, as well as a Telegram bot token. These can be obtained by following the instructions on the respective websites.
+You'll also need to obtain API keys for Etherscan, as well as a Telegram bot token. These can be obtained by following the instructions on the respective websites.
 
 ## Installation
 
@@ -48,7 +48,6 @@ You'll also need to obtain API keys for Etherscan and BSCscan, as well as a Tele
 
     ```python
     ETHERSCAN_API_KEY = '<your_etherscan_api_key>'
-    BSCSCAN_API_KEY = '<your_bscscan_api_key>'
     TELEGRAM_BOT_TOKEN = '<your_telegram_bot_token>'
     TELEGRAM_CHAT_ID = '<your_telegram_chat_id>'
     ```
