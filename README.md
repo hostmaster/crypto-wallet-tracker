@@ -1,5 +1,4 @@
-#
-Crypto Wallet Transactions Tracker Bot
+# Crypto Wallet Transactions Tracker Bot
 
 This is a Telegram bot that tracks the transactions of added Ethereum (ETH) wallets and sends notifications whenever a new transaction occurs. The bot uses the Ethersca APIs to gather information about transactions, and CoinGecko to fetch the current prices of ETH.
 
