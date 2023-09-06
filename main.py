@@ -1,10 +1,11 @@
 #! !/usr/bin/env python3
 
-import requests
 import json
 import time
 import os
 import sys
+
+import requests
 from web3 import Web3
 
 
