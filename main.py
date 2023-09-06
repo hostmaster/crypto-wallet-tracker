@@ -11,7 +11,7 @@ from web3 import Web3
 def get_secret(key, default):
     value = os.getenv(key, default)
     if os.path.isfile(value):
-        with open(value) as f:
+        with open(value, encoding="utf-8") as f:
             file_contents = f.readlines()
             file_contents = [line.rstrip() for line in file_contents]
             file_contents = "".join(file_contents)
@@ -34,7 +34,7 @@ LAST_RUN_TIME_PATH = os.environ.get("LAST_RUN_TIME_PATH", "last_run_time.txt")
 # Define some helper functions
 def get_wallet_transactions(wallet_address, blockchain="eth"):
     url = f"https://api.etherscan.io/api?module=account&contractaddress={USDT_CONTRACT_ADDRESS}&action=txlist&address={wallet_address}&sort=desc&apikey={ETHERSCAN_API_KEY}"
-    response = requests.get(url)
+    response = requests.get(url, timeout=10)
     data = json.loads(response.text)
 
     result = data.get("result", [])
@@ -56,7 +56,7 @@ def send_telegram_notification(message, value, usd_value, tx_hash, blockchain="e
         "text": f"{message}: {etherscan_link}\nValue: {value:.6f} {blockchain.upper()} (${usd_value:.2f})",
         "parse_mode": "HTML",
     }
-    response = requests.post(url, data=payload)
+    response = requests.post(url, data=payload, timeout=10)
     print(
         f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] Telegram notification sent with message: {message}, value: {value} {blockchain.upper()} (${usd_value:.2f})"
     )
@@ -68,30 +68,31 @@ def monitor_wallets():
     file_path = WALLETS
 
     if not os.path.exists(file_path):
-        open(file_path, "w").close()
+        with open(file_path, mode="w", encoding="utf-8"):
+            pass  # close file immediately
 
     latest_tx_hashes = {}
     latest_tx_hashes_path = HASHES_PATH
     if os.path.exists(latest_tx_hashes_path):
-        with open(latest_tx_hashes_path, "r") as f:
+        with open(latest_tx_hashes_path, mode="r", encoding="utf-8") as f:
             latest_tx_hashes = json.load(f)
 
     last_run_time = 0
     last_run_time_path = LAST_RUN_TIME_PATH
     if os.path.exists(last_run_time_path):
-        with open(last_run_time_path, "r") as f:
+        with open(last_run_time_path, mode="r", encoding="utf-8") as f:
             last_run_time = int(f.read())
 
     while True:
         try:
             # Fetch current ETH prices in USD from CoinGecko API
             eth_usd_price_url = "https://api.coingecko.com/api/v3/simple/price?ids=ethereum%2Cbinancecoin&vs_currencies=usd"
-            response = requests.get(eth_usd_price_url)
+            response = requests.get(eth_usd_price_url, timeout=10)
             data = json.loads(response.text)
             eth_usd_price = data["ethereum"]["usd"]
 
             # Read from file
-            with open(file_path, "r") as f:
+            with open(file_path, mode="r", encoding="utf-8") as f:
                 watched_wallets = set(f.read().splitlines())
 
             for wallet in watched_wallets:
@@ -128,38 +129,42 @@ def monitor_wallets():
                         latest_tx_hashes[tx_hash] = int(tx["blockNumber"])
 
             # Save latest_tx_hashes to file
-            with open(latest_tx_hashes_path, "w") as f:
+            with open(latest_tx_hashes_path, mode="w", encoding="utf-8") as f:
                 json.dump(latest_tx_hashes, f)
 
             # Update last_run_time
             last_run_time = int(time.time())
-            with open(last_run_time_path, "w") as f:
+            with open(last_run_time_path, mode="w", encoding="utf-8") as f:
                 f.write(str(last_run_time))
 
             # Sleep for 1 minute
             time.sleep(60)
-        except Exception as e:
+        except Exception as e:  # pylint: disable=broad-except
             print(f"An error occurred: {e}")
             # Sleep for 10 seconds before trying again
             time.sleep(10)
 
 
 def add_wallet(wallet_address, blockchain="eth", file_path=WALLETS):
-    with open(file_path, "a") as f:
+    with open(file_path, mode="a", encoding="utf-8") as f:
         f.write(f"{blockchain}:{wallet_address}\n")
 
 
 def remove_wallet(wallet_address, blockchain="eth", file_path=WALLETS):
-    with open(file_path, "r") as f, open(TMP, "w") as temp_f:
+    with open(file_path, mode="r", encoding="utf-8") as f, open(
+        TMP, mode="w", encoding="utf-8"
+    ) as temp_f:
         for line in f:
             if line.strip() != f"{blockchain}:{wallet_address}":
                 temp_f.write(line)
     os.replace(TMP, file_path)
 
 
-def remove_wallet_by_index(index, blockchain="eth", file_path=WALLETS):
+def remove_wallet_by_index(index, file_path=WALLETS):
     i = 0
-    with open(file_path, "r") as f, open(TMP, "w") as temp_f:
+    with open(file_path, mode="r", encoding="utf-8") as f, open(
+        TMP, mode="w", encoding="utf-8"
+    ) as temp_f:
         for line in f:
             if i != index:
                 temp_f.write(line)
@@ -232,13 +237,12 @@ def remove(update, context):
     context.bot.send_message(chat_id=update.message.chat_id, text=message)
 
 
-def list_wallets(update, context, blockchain="eth", file_path=WALLETS):
-    with open(file_path, "r") as f:
+def list_wallets(update, context, file_path=WALLETS):
+    with open(file_path, mode="r", encoding="utf-8") as f:
         wallets = [line.strip() for line in f.readlines()]
     if wallets:
         eth_wallets = []
-        for wallet in wallets:
-            blockchain, wallet_address = wallet.split(":")
+        for wallet_address in wallets:
             eth_wallets.append(wallet_address)
 
         message = "The following wallets are currently being monitored\n"
