@@ -1,6 +1,6 @@
 services:
   tracker:
-    image: registry.digitalocean.com/wallet-tracker/tracker
+    image: ghcr.io/hostmaster/crypto-wallet-tracker:latest
     platform: linux/x86_64
     build:
       context: .
