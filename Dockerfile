@@ -1,18 +1,19 @@
 # syntax = docker/dockerfile:1.3
 
+ARG PYTHON_VERSION
+
 ### Base image
-FROM python:3.11-slim-bookworm AS base
+FROM python:$PYTHON_VERSION-slim-bookworm AS base
 
 ENV APP_HOME /app
 ENV VIRTUAL_ENV /venv
 ENV PYTHONPATH $APP_HOME
-ENV POETRY_HOME /poetry
-ENV PATH $VIRTUAL_ENV/bin:$POETRY_HOME/bin:$PATH
+ENV PATH $VIRTUAL_ENV/bin:$PATH
+
 ENV PIP_NO_CACHE_DIR 1
 
 ### Build python dependencies
 FROM base AS builder
-SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
 # hadolint ignore=DL3008
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -24,10 +25,9 @@ WORKDIR $APP_HOME
 COPY requirements.txt ./
 
 # hadolint ignore=DL3013
-RUN --mount=type=cache,target=/root/.cache \
-    python -m venv /venv && \
-    pip install --upgrade pip && \
-    pip install -r requirements.txt
+RUN python -m venv /venv && \
+    pip install --no-cache-dir --upgrade pip && \
+    pip install --no-cache-dir -r requirements.txt
 
 # Production image
 FROM base as runtime
@@ -37,5 +37,8 @@ COPY --from=builder /venv /venv
 
 WORKDIR $APP_HOME
 COPY . ./
+
+ARG GIT_COMMIT=unspecified
+RUN echo $GIT_COMMIT > "$APP_HOME/git_version"
 
 CMD [ "python", "main.py" ]
