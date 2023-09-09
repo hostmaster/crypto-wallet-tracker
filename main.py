@@ -1,5 +1,10 @@
 #!/usr/bin/env python
-# pylint: disable=unused-argument, import-error
+# pylint: disable=unused-argument, import-error, logging-fstring-interpolation, global-statement
+
+import os
+import json
+import requests
+import shelve
 
 import logging
 
@@ -18,7 +23,7 @@ logger = logging.getLogger(__name__)
 
 USDT_CONTRACT = "0xdac17f958d2ee523a2206206994597c13d831ec7"
 ETHERSCAN_TOKEN = "undefined"
-TELEGRAM_CHAT_ID_FILE = "undefined"
+TELEGRAM_CHAT_ID = "undefined"
 WALLET_ADDRESS = "undefined"
 
 
@@ -29,8 +34,6 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
 def get_latest_tx(token: str, contract: str, address: str) -> dict:
     """Get the latest transaction for a given address on ETH blockchain."""
-    import requests
-    import json
 
     url = "https://api.etherscan.io/api"
     params = {
@@ -58,24 +61,23 @@ def get_latest_tx(token: str, contract: str, address: str) -> dict:
     return result[0]
 
 
-def is_new_tx(hash: str) -> bool:
+def is_new_tx(tx_hash: str) -> bool:
     """Check if the transaction is new."""
-    import shelve
 
     # TODO: Keeping only last X transactions
     with shelve.open("tx") as db:
-        if hash in db:
-            logging.debug(f"Transaction {hash} already processed")
+        if tx_hash in db:
+            logging.debug(f"Transaction {tx_hash} already processed")
             return False
-        db[hash] = True
+        db[tx_hash] = True
         return True
 
 
-def get_direction(tx: dict, address: str) -> str:
+def get_direction(transaction: dict, address: str) -> str:
     """Detect transaction direction."""
-    if tx["from"].lower() == address.lower():
+    if transaction["from"].lower() == address.lower():
         direction = "📤 Outgoing"
-    elif tx["to"].lower() == address.lower:
+    elif transaction["to"].lower() == address.lower:
         direction = "📥 Incoming"
     else:
         direction = "Unknown"
@@ -90,11 +92,13 @@ async def callback_minute(context: ContextTypes.DEFAULT_TYPE) -> None:
     )
     if tx is not None:
         logger.debug(f"The latest transaction is {tx}")
-        hash = tx.get("hash")
+        tx_hash = tx.get("hash")
         usdt = float(tx.get("value")) / 10**6
-        if is_new_tx(hash):
-            etherscan_link = f'<a href="https://etherscan.io/tx/{hash}">Etherscan</a>'
-            direction = get_direction(tx=tx, address=WALLET_ADDRESS)
+        if is_new_tx(tx_hash):
+            etherscan_link = (
+                f'<a href="https://etherscan.io/tx/{tx_hash}">Etherscan</a>'
+            )
+            direction = get_direction(transaction=tx, address=WALLET_ADDRESS)
             await context.bot.send_message(
                 chat_id=TELEGRAM_CHAT_ID,
                 text=f"{direction} ETH transaction detected {etherscan_link} {usdt:.2f} USDT",
@@ -104,7 +108,6 @@ async def callback_minute(context: ContextTypes.DEFAULT_TYPE) -> None:
 
 def get_secret(key: str, default: str) -> str:
     """Get secret from environment variable or from file."""
-    import os
 
     value = os.getenv(key, default)
     if os.path.isfile(value):
@@ -123,18 +126,18 @@ def main() -> None:
     global WALLET_ADDRESS
 
     ETHERSCAN_TOKEN = get_secret("ETHERSCAN_API_KEY_FILE", "undefined")
-    TELEGRAM_BOT_TOKEN = get_secret("TELEGRAM_BOT_TOKEN_FILE", "undefined")
     TELEGRAM_CHAT_ID = get_secret("TELEGRAM_CHAT_ID_FILE", "undefined")
     WALLET_ADDRESS = get_secret("WALLET_ADDRESS_FILE", "undefined")
 
+    tg_token = get_secret("TELEGRAM_BOT_TOKEN_FILE", "undefined")
     # Create the Application and pass it your bot's token.
-    application = Application.builder().token(TELEGRAM_BOT_TOKEN).build()
+    application = Application.builder().token(tg_token).build()
     job_queue = application.job_queue
 
     # on different commands - answer in Telegram
     application.add_handler(CommandHandler(["start", "help"], start))
 
-    job_minute = job_queue.run_repeating(callback_minute, interval=60, first=10)
+    job_queue.run_repeating(callback_minute, interval=60, first=10)
 
     # Run the bot until the user presses Ctrl-C
     application.run_polling(allowed_updates=Update.ALL_TYPES)
