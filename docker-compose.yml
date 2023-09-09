@@ -5,15 +5,15 @@ services:
     build:
       context: .
       target: runtime
+      args:
+        - PYTHON_VERSION=3.11
     volumes:
       - db-data:/data
     environment:
-      ETHERSCAN_API_KEY: /run/secrets/etherscan_api_key
-      TELEGRAM_BOT_TOKEN: /run/secrets/tg_bot_token
-      TELEGRAM_CHAT_ID: /run/secrets/tg_chat_id
-      WALLETS: "/data/wallets.txt"
-      HASHES_PATH: "/data/latest_tx_hashes.json"
-      LAST_RUN_TIME_PATH: "/data/last_run_time.txt"
+      ETHERSCAN_API_KEY_FILE: /run/secrets/etherscan_api_key
+      TELEGRAM_BOT_TOKEN_FILE: /run/secrets/tg_bot_token
+      TELEGRAM_CHAT_ID_FILE: /run/secrets/tg_chat_id
+      WALLET_ADDRESS_FILE: /run/secrets/wallet_address
     secrets:
       - etherscan_api_key
       - tg_bot_token
@@ -26,6 +26,8 @@ secrets:
     file: ./tg_bot_token.txt
   tg_chat_id:
     file: ./tg_chat_id.txt
+  address:
+    file: ./wallet_address.txt
 
 volumes:
   db-data:
