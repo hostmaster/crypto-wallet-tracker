@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-# pylint: disable=unused-argument, import-error, logging-fstring-interpolation, global-statement
+# pylint: disable=unused-argument, import-error, logging-fstring-interpolation, global-statement, fixme
 
 import os
 import json
@@ -23,7 +23,6 @@ logger = logging.getLogger(__name__)
 
 USDT_CONTRACT = "0xdac17f958d2ee523a2206206994597c13d831ec7"
 ETHERSCAN_TOKEN = "undefined"
-TELEGRAM_CHAT_ID = "undefined"
 WALLET_ADDRESS = "undefined"
 
 
@@ -75,6 +74,7 @@ def is_new_tx(tx_hash: str) -> bool:
 
 def get_direction(transaction: dict, address: str) -> str:
     """Detect transaction direction."""
+
     if transaction["from"].lower() == address.lower():
         direction = "📤 Outgoing"
     elif transaction["to"].lower() == address.lower:
@@ -85,7 +85,7 @@ def get_direction(transaction: dict, address: str) -> str:
 
 
 async def callback_minute(context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Send a message when the timer is reached."""
+    """Keep track of ETH transactions regularly."""
 
     tx = get_latest_tx(
         token=ETHERSCAN_TOKEN, contract=USDT_CONTRACT, address=WALLET_ADDRESS
@@ -100,7 +100,7 @@ async def callback_minute(context: ContextTypes.DEFAULT_TYPE) -> None:
             )
             direction = get_direction(transaction=tx, address=WALLET_ADDRESS)
             await context.bot.send_message(
-                chat_id=TELEGRAM_CHAT_ID,
+                chat_id=context.job.chat_id,
                 text=f"{direction} ETH transaction detected {etherscan_link} {usdt:.2f} USDT",
                 parse_mode=ParseMode.HTML,
             )
@@ -122,14 +122,14 @@ def get_secret(key: str, default: str) -> str:
 def main() -> None:
     """Run bot."""
     global ETHERSCAN_TOKEN
-    global TELEGRAM_CHAT_ID
     global WALLET_ADDRESS
 
     ETHERSCAN_TOKEN = get_secret("ETHERSCAN_API_KEY_FILE", "undefined")
-    TELEGRAM_CHAT_ID = get_secret("TELEGRAM_CHAT_ID_FILE", "undefined")
     WALLET_ADDRESS = get_secret("WALLET_ADDRESS_FILE", "undefined")
 
+    tg_chat_id = get_secret("TELEGRAM_CHAT_ID_FILE", "undefined")
     tg_token = get_secret("TELEGRAM_BOT_TOKEN_FILE", "undefined")
+
     # Create the Application and pass it your bot's token.
     application = Application.builder().token(tg_token).build()
     job_queue = application.job_queue
@@ -137,7 +137,7 @@ def main() -> None:
     # on different commands - answer in Telegram
     application.add_handler(CommandHandler(["start", "help"], start))
 
-    job_queue.run_repeating(callback_minute, interval=60, first=10)
+    job_queue.run_repeating(callback_minute, interval=60, first=10, chat_id=tg_chat_id)
 
     # Run the bot until the user presses Ctrl-C
     application.run_polling(allowed_updates=Update.ALL_TYPES)
