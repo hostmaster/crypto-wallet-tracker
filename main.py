@@ -4,12 +4,20 @@
 import os
 import json
 import requests
+from requests.exceptions import HTTPError, RequestException
+
 import shelve
 
 import logging
 
 from telegram import Update
-from telegram.ext import Application, CommandHandler, ContextTypes
+from telegram.ext import (
+    Application,
+    CommandHandler,
+    ContextTypes,
+    # MessageHandler,
+    # filters,
+)
 from telegram.constants import ParseMode
 
 # Enable logging
@@ -24,6 +32,8 @@ logger = logging.getLogger(__name__)
 USDT_CONTRACT = "0xdac17f958d2ee523a2206206994597c13d831ec7"
 ETHERSCAN_TOKEN = "undefined"
 WALLET_ADDRESS = "undefined"
+
+HTTP_TIMEOUT = 5
 
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -47,17 +57,29 @@ def get_latest_tx(token: str, contract: str, address: str) -> dict:
         "sort": "desc",
         "apikey": token,
     }
-    response = requests.get(url, params=params, timeout=10)
-    data = json.loads(response.text)
 
-    result = data.get("result", [])
-    logging.debug(f"Fetched {len(result)} transactions for {address} on ETH blockchain")
+    try:
+        response = requests.get(url, params=params, timeout=HTTP_TIMEOUT)
+        response.raise_for_status()
 
-    if not isinstance(result, list):
+        if response.json()["message"] == "NOTOK":
+            raise RuntimeError(response.json())
+
+        data = json.loads(response.text)
+        result = data.get("result", [])
+
+        return result[0]
+
+    except HTTPError as http_e:
         logging.error(
-            f"Error fetching transactions for {address} on ETH blockchain: {data}"
+            f"HTTP error fetching transactions for {address} on ETH blockchain: {http_e}"
         )
-    return result[0]
+        return None
+    except (RequestException, RuntimeError) as e:
+        logging.error(
+            f"Error fetching transactions for {address} on ETH blockchain: {e}"
+        )
+        return None
 
 
 def is_new_tx(tx_hash: str) -> bool:
@@ -106,6 +128,12 @@ async def callback_minute(context: ContextTypes.DEFAULT_TYPE) -> None:
             )
 
 
+# async def restrict(update: Update, context: ContextTypes.DEFAULT_TYPE):
+#     await context.bot.send_message(
+#         chat_id=update.effective_chat.id, text="There is no bot in Ba Sing Se."
+#     )
+
+
 def get_secret(key: str, default: str) -> str:
     """Get secret from environment variable or from file."""
 
@@ -136,6 +164,10 @@ def main() -> None:
 
     # on different commands - answer in Telegram
     application.add_handler(CommandHandler(["start", "help"], start))
+
+    # Restrict bot to the specified user
+    # restrict_handler = MessageHandler(~filters.User(username=""), restrict)
+    # application.add_handler(restrict_handler)
 
     job_queue.run_repeating(callback_minute, interval=60, first=10, chat_id=tg_chat_id)
 
