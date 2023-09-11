@@ -18,6 +18,7 @@ services:
       - etherscan_api_key
       - tg_bot_token
       - tg_chat_id
+      - wallet_address
 
 secrets:
   etherscan_api_key:
@@ -26,7 +27,7 @@ secrets:
     file: ./tg_bot_token.txt
   tg_chat_id:
     file: ./tg_chat_id.txt
-  address:
+  wallet_address:
     file: ./wallet_address.txt
 
 volumes:
