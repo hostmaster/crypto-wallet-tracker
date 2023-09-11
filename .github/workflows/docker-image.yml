@@ -21,6 +21,8 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+      - run: |
+          echo "GIT_COMMIT=$(git rev-parse --short ${{ github.sha }})" >> $GITHUB_ENV
 
       - name: Log in to the Container registry
         uses: docker/login-action@v2
@@ -50,7 +52,7 @@ jobs:
           target: runtime
           build-args: |
             PYTHON_VERSION=${{ env.PYTHON_VERSION }}
-            GIT_COMMIT=${{ steps.meta.outputs.sha }}
+            GIT_COMMIT=${{ env.GIT_COMMIT }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
           labels: ${{ steps.meta.outputs.labels }}
