@@ -99,7 +99,7 @@ def get_direction(transaction: dict, address: str) -> str:
 
     if transaction["from"].lower() == address.lower():
         direction = "📤 Outgoing"
-    elif transaction["to"].lower() == address.lower:
+    elif transaction["to"].lower() == address.lower():
         direction = "📥 Incoming"
     else:
         direction = "Unknown"
@@ -176,4 +176,13 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    main()
+    import sys
+
+    try:
+        main()
+    except KeyboardInterrupt:
+        print("Interrupted")
+        try:
+            sys.exit(130)
+        except SystemExit:
+            os._exit(130)
