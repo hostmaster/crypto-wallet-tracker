@@ -5,21 +5,13 @@ ARG PYTHON_VERSION
 ### Base image
 FROM python:$PYTHON_VERSION-slim-bookworm AS base
 
-ENV APP_HOME /app
+ENV APP_HOME    /app
 ENV VIRTUAL_ENV /venv
-ENV PYTHONPATH $APP_HOME
-ENV PATH $VIRTUAL_ENV/bin:$PATH
-
-ENV PIP_NO_CACHE_DIR 1
+ENV PYTHONPATH  $APP_HOME
+ENV PATH        $VIRTUAL_ENV/bin:$PATH
 
 ### Build python dependencies
 FROM base AS builder
-
-# hadolint ignore=DL3008
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    build-essential && \
-    apt-get clean && \
-    rm -rf /var/lib/apt/lists/*
 
 WORKDIR $APP_HOME
 COPY requirements.txt ./
@@ -36,7 +28,7 @@ ENV PATH /venv/bin:$PATH
 COPY --from=builder /venv /venv
 
 WORKDIR $APP_HOME
-COPY . ./
+COPY main.py ./
 
 ARG GIT_COMMIT=unspecified
 RUN echo $GIT_COMMIT > "$APP_HOME/git_version"
