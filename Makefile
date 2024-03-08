@@ -18,7 +18,7 @@ push: build docker-login
 sync: docker-compose.yml
 	rsync -va -z docker-compose.yml $(TARGET_HOST):$(TARGET_DIR)/docker-compose.yml
 
-deploy: push sync
+deploy: sync
 	ssh $(TARGET_HOST) "cd $(TARGET_DIR) && docker compose up --pull=always --detach --no-build"
 
 docker-login:

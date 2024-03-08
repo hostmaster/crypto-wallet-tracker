@@ -135,7 +135,7 @@ async def callback_minute(context: ContextTypes.DEFAULT_TYPE) -> None:
 
 
 def get_secret(key: str, default: str) -> str:
-    """Get secret from environment variable or from file."""
+    """Get secret from environment variable or from a file."""
 
     value = os.getenv(key, default)
     if os.path.isfile(value):
