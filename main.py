@@ -2,6 +2,7 @@
 # pylint: disable=unused-argument, import-error, logging-fstring-interpolation, global-statement, fixme
 
 import os
+import sys
 import json
 import requests
 from requests.exceptions import HTTPError, RequestException
@@ -30,8 +31,8 @@ logging.getLogger("httpx").setLevel(logging.WARNING)
 logger = logging.getLogger(__name__)
 
 USDT_CONTRACT = "0xdac17f958d2ee523a2206206994597c13d831ec7"
-ETHERSCAN_TOKEN = "undefined"
-WALLET_ADDRESS = "undefined"
+ETHERSCAN_API_KEY = None
+WALLET_ADDRESS = None
 
 HTTP_TIMEOUT = 5
 
@@ -110,7 +111,7 @@ async def callback_minute(context: ContextTypes.DEFAULT_TYPE) -> None:
     """Keep track of ETH transactions regularly."""
 
     tx = get_latest_tx(
-        token=ETHERSCAN_TOKEN, contract=USDT_CONTRACT, address=WALLET_ADDRESS
+        token=ETHERSCAN_API_KEY, contract=USDT_CONTRACT, address=WALLET_ADDRESS
     )
     if tx is not None:
         logger.debug(f"The latest transaction is {tx}")
@@ -134,50 +135,57 @@ async def callback_minute(context: ContextTypes.DEFAULT_TYPE) -> None:
 #     )
 
 
-def get_secret(key: str, default: str) -> str:
-    """Get secret from environment variable or from a file."""
+def read_docker_secret(secret_name: str) -> str:
+    """Read secret from Docker secret file."""
+    secret_path = f"/run/secrets/{secret_name}"
+    try:
+        with open(secret_path, "r", encoding="utf-8") as secret_file:
+            secret_value = secret_file.read().strip()
+            return secret_value
+    except FileNotFoundError:
+        print(f"Secret '{secret_name}' not found.")
+        return None
 
-    value = os.getenv(key, default)
-    if os.path.isfile(value):
-        with open(value, encoding="utf-8") as f:
-            file_contents = f.readlines()
-            file_contents = [line.rstrip() for line in file_contents]
-            file_contents = "".join(file_contents)
-            return file_contents
-    return value
+
+def load_global_secrets() -> None:
+    """Load secrets from docker secrets."""
+
+    global ETHERSCAN_API_KEY, WALLET_ADDRESS
+    ETHERSCAN_API_KEY = read_docker_secret("etherscan_api_key")
+    WALLET_ADDRESS = read_docker_secret("wallet_address")
 
 
 def main() -> None:
     """Run bot."""
-    global ETHERSCAN_TOKEN
-    global WALLET_ADDRESS
+    try:
+        load_global_secrets()
 
-    ETHERSCAN_TOKEN = get_secret("ETHERSCAN_API_KEY_FILE", "undefined")
-    WALLET_ADDRESS = get_secret("WALLET_ADDRESS_FILE", "undefined")
+        tg_chat_id = read_docker_secret("tg_chat_id")
+        tg_bot_token = read_docker_secret("tg_bot_token")
 
-    tg_chat_id = get_secret("TELEGRAM_CHAT_ID_FILE", "undefined")
-    tg_token = get_secret("TELEGRAM_BOT_TOKEN_FILE", "undefined")
+        # Create the Application and pass it your bot's token.
+        application = Application.builder().token(tg_bot_token).build()
+        job_queue = application.job_queue
 
-    # Create the Application and pass it your bot's token.
-    application = Application.builder().token(tg_token).build()
-    job_queue = application.job_queue
+        # on different commands - answer in Telegram
+        application.add_handler(CommandHandler(["start", "help"], start))
 
-    # on different commands - answer in Telegram
-    application.add_handler(CommandHandler(["start", "help"], start))
+        # Restrict bot to the specified user
+        # restrict_handler = MessageHandler(~filters.User(username=""), restrict)
+        # application.add_handler(restrict_handler)
 
-    # Restrict bot to the specified user
-    # restrict_handler = MessageHandler(~filters.User(username=""), restrict)
-    # application.add_handler(restrict_handler)
+        job_queue.run_repeating(
+            callback_minute, interval=60, first=10, chat_id=tg_chat_id
+        )
 
-    job_queue.run_repeating(callback_minute, interval=60, first=10, chat_id=tg_chat_id)
-
-    # Run the bot until the user presses Ctrl-C
-    application.run_polling(allowed_updates=Update.ALL_TYPES)
+        # Run the bot until the user presses Ctrl-C
+        application.run_polling(allowed_updates=Update.ALL_TYPES)
+    except Exception as e:
+        logger.error(f"An error occurred: {e}")
+        sys.exit(1)
 
 
 if __name__ == "__main__":
-    import sys
-
     try:
         main()
     except KeyboardInterrupt:

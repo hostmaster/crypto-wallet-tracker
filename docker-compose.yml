@@ -9,11 +9,6 @@ services:
         - PYTHON_VERSION=3.11
     volumes:
       - db-data:/data
-    environment:
-      ETHERSCAN_API_KEY_FILE: /run/secrets/etherscan_api_key
-      TELEGRAM_BOT_TOKEN_FILE: /run/secrets/tg_bot_token
-      TELEGRAM_CHAT_ID_FILE: /run/secrets/tg_chat_id
-      WALLET_ADDRESS_FILE: /run/secrets/wallet_address
     secrets:
       - etherscan_api_key
       - tg_bot_token
