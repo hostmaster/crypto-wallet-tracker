@@ -1,10 +1,16 @@
 #!/usr/bin/env python
+# pylint: disable=unused-argument
+# pylint: disable=import-error
+# pylint: disable=logging-fstring-interpolation
+# pylint: disable=global-statement
+# pylint: disable=fixme
 # pylint: disable=unused-argument, import-error, logging-fstring-interpolation, global-statement, fixme
 
 import os
 import sys
 import json
 import requests
+import html
 from requests.exceptions import HTTPError, RequestException
 
 import shelve
@@ -16,8 +22,6 @@ from telegram.ext import (
     Application,
     CommandHandler,
     ContextTypes,
-    # MessageHandler,
-    # filters,
 )
 from telegram.constants import ParseMode
 
@@ -65,21 +69,25 @@ def get_latest_tx(token: str, contract: str, address: str) -> dict:
 
         if response.json()["message"] == "NOTOK":
             raise RuntimeError(response.json())
-
         data = json.loads(response.text)
         result = data.get("result", [])
-
         return result[0]
 
     except HTTPError as http_e:
-        logging.error(
+        logger.error(
             f"HTTP error fetching transactions for {address} on ETH blockchain: {http_e}"
         )
         return None
-    except (RequestException, RuntimeError) as e:
-        logging.error(
+    except (
+        RequestException,
+        RuntimeError,
+    ) as e:
+        logger.error(
             f"Error fetching transactions for {address} on ETH blockchain: {e}"
         )
+        return None
+    except json.JSONDecodeError:
+        logger.error(f"Error decoding JSON response")
         return None
 
 
@@ -89,7 +97,7 @@ def is_new_tx(tx_hash: str) -> bool:
     # TODO: Keeping only last X transactions
     with shelve.open("tx") as db:
         if tx_hash in db:
-            logging.debug(f"Transaction {tx_hash} already processed")
+            logger.debug(f"Transaction {tx_hash} already processed")
             return False
         db[tx_hash] = True
         return True
@@ -118,9 +126,7 @@ async def callback_minute(context: ContextTypes.DEFAULT_TYPE) -> None:
         tx_hash = tx.get("hash")
         usdt = float(tx.get("value")) / 10**6
         if is_new_tx(tx_hash):
-            etherscan_link = (
-                f'<a href="https://etherscan.io/tx/{tx_hash}">Etherscan</a>'
-            )
+            etherscan_link = f'<a href="https://etherscan.io/tx/{html.escape(tx_hash)}">Etherscan</a>'
             direction = get_direction(transaction=tx, address=WALLET_ADDRESS)
             await context.bot.send_message(
                 chat_id=context.job.chat_id,
@@ -143,7 +149,7 @@ def read_docker_secret(secret_name: str) -> str:
             secret_value = secret_file.read().strip()
             return secret_value
     except FileNotFoundError:
-        print(f"Secret '{secret_name}' not found.")
+        logger.error(f"Secret '{secret_name}' not found.")
         return None
 
 
@@ -180,7 +186,7 @@ def main() -> None:
 
         # Run the bot until the user presses Ctrl-C
         application.run_polling(allowed_updates=Update.ALL_TYPES)
-    except Exception as e:
+    except (FileNotFoundError, RuntimeError, ValueError) as e:
         logger.error(f"An error occurred: {e}")
         sys.exit(1)
 
@@ -189,7 +195,7 @@ if __name__ == "__main__":
     try:
         main()
     except KeyboardInterrupt:
-        print("Interrupted")
+        logger.info("Interrupted")
         try:
             sys.exit(130)
         except SystemExit:
