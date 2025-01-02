@@ -83,7 +83,7 @@ def get_latest_tx(token: str, contract: str, address: str) -> dict:
         )
         return None
     except json.JSONDecodeError:
-        logger.error(f"Error decoding JSON response")
+        logger.error("Error decoding JSON response")
         return None
 
 
