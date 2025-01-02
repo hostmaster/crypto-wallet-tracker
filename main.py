@@ -1,9 +1,4 @@
 #!/usr/bin/env python
-# pylint: disable=unused-argument
-# pylint: disable=import-error
-# pylint: disable=logging-fstring-interpolation
-# pylint: disable=global-statement
-# pylint: disable=fixme
 # pylint: disable=unused-argument, import-error, logging-fstring-interpolation, global-statement, fixme
 
 import os
@@ -67,9 +62,10 @@ def get_latest_tx(token: str, contract: str, address: str) -> dict:
         response = requests.get(url, params=params, timeout=HTTP_TIMEOUT)
         response.raise_for_status()
 
-        if response.json()["message"] == "NOTOK":
+        response_json = response.json()
+        if "message" in response_json and response_json["message"] == "NOTOK":
             raise RuntimeError(response.json())
-        data = json.loads(response.text)
+        data = response.json()
         result = data.get("result", [])
         return result[0]
 
@@ -135,12 +131,6 @@ async def callback_minute(context: ContextTypes.DEFAULT_TYPE) -> None:
             )
 
 
-# async def restrict(update: Update, context: ContextTypes.DEFAULT_TYPE):
-#     await context.bot.send_message(
-#         chat_id=update.effective_chat.id, text="There is no bot in Ba Sing Se."
-#     )
-
-
 def read_docker_secret(secret_name: str) -> str:
     """Read secret from Docker secret file."""
     secret_path = f"/run/secrets/{secret_name}"
@@ -175,10 +165,6 @@ def main() -> None:
 
         # on different commands - answer in Telegram
         application.add_handler(CommandHandler(["start", "help"], start))
-
-        # Restrict bot to the specified user
-        # restrict_handler = MessageHandler(~filters.User(username=""), restrict)
-        # application.add_handler(restrict_handler)
 
         job_queue.run_repeating(
             callback_minute, interval=60, first=10, chat_id=tg_chat_id
